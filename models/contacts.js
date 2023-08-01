@@ -103,10 +103,34 @@ const updateContact = async (req, res, next) => {
   }
 };
 
+const updateStatusContact = async (req, res, next) => {
+  try {
+    const { contactId } = req.params;
+    const { favorite } = req.body;
+
+    if (favorite === undefined) {
+      throw new HttpError(400, "missing field favorite");
+    }
+
+    const contactsAll = await readContactsFile();
+    const index = contactsAll.findIndex((item) => item.id === contactId);
+    if (index === -1) {
+      throw new HttpError(404, "Contact not found");
+    }
+
+    contactsAll[index].favorite = favorite;
+    await writeContactsFile(contactsAll);
+    res.status(200).json(contactsAll[index]);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   listContacts,
   getContactById,
   removeContact,
   addContact,
   updateContact,
+  updateStatusContact,
 };
