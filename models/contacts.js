@@ -6,7 +6,7 @@ const contactSchema = new mongoose.Schema({
   name: String,
   email: String,
   phone: String,
-  favorite: Boolean, // Add this field to the schema
+  favorite: Boolean,
 });
 
 const Contact = mongoose.model("Contact", contactSchema);
