@@ -1,27 +1,19 @@
-const fs = require("fs/promises");
-const path = require("path");
-const { nanoid } = require("nanoid");
+const mongoose = require("mongoose");
 const { HttpError } = require("../helpers/HttpErrors");
 const { addSchema } = require("../schemas/validationSchemas");
 
-const contactsPath = path.join(__dirname, "contacts.json");
+const contactSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  phone: String,
+  favorite: Boolean, // Add this field to the schema
+});
 
-const readContactsFile = async () => {
-  try {
-    const data = await fs.readFile(contactsPath, "utf8");
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-};
-
-const writeContactsFile = async (contacts) => {
-  await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2), "utf8");
-};
+const Contact = mongoose.model("Contact", contactSchema);
 
 const listContacts = async (req, res, next) => {
   try {
-    const contacts = await readContactsFile();
+    const contacts = await Contact.find();
     res.status(200).json(contacts);
   } catch (error) {
     next(error);
@@ -31,13 +23,11 @@ const listContacts = async (req, res, next) => {
 const getContactById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const contactIdString = String(id);
-    const contactsAll = await readContactsFile();
-    const result = contactsAll.find((item) => item.id === contactIdString);
-    if (!result) {
+    const contact = await Contact.findById(id);
+    if (!contact) {
       throw new HttpError(404, "Contact not found");
     }
-    res.json(result);
+    res.json(contact);
   } catch (error) {
     next(error);
   }
@@ -46,14 +36,10 @@ const getContactById = async (req, res, next) => {
 const removeContact = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const contactIdString = String(id);
-    const contactsAll = await readContactsFile();
-    const index = contactsAll.findIndex((item) => item.id === contactIdString);
-    if (index === -1) {
+    const result = await Contact.findByIdAndRemove(id);
+    if (!result) {
       throw new HttpError(404, "Contact not found");
     }
-    const [result] = contactsAll.splice(index, 1);
-    await writeContactsFile(contactsAll);
     res.status(200).json({ message: "Contact deleted", result });
   } catch (error) {
     next(error);
@@ -69,13 +55,8 @@ const addContact = async (req, res, next) => {
         `${error.message} : missing required name, email, or phone field`
       );
     }
-    const contactsAll = await readContactsFile();
-    const newContact = {
-      id: nanoid(),
-      ...req.body,
-    };
-    contactsAll.push(newContact);
-    await writeContactsFile(contactsAll);
+    const newContact = new Contact({ ...req.body });
+    await newContact.save();
     res.status(201).json(newContact);
   } catch (error) {
     next(error);
@@ -89,15 +70,16 @@ const updateContact = async (req, res, next) => {
     if (error) {
       throw new HttpError(400, `${error.message} : missing fields`);
     }
-    const contactIdString = String(id);
-    const contactsAll = await readContactsFile();
-    const index = contactsAll.findIndex((item) => item.id === contactIdString);
-    if (index === -1) {
+
+    const updatedContact = await Contact.findByIdAndUpdate(id, req.body, {
+      new: true,
+    });
+
+    if (!updatedContact) {
       throw new HttpError(404, "Contact not found");
     }
-    contactsAll[index] = { id: contactIdString, ...req.body };
-    await writeContactsFile(contactsAll);
-    res.status(200).json(contactsAll[index]);
+
+    res.status(200).json(updatedContact);
   } catch (error) {
     next(error);
   }
@@ -112,15 +94,17 @@ const updateStatusContact = async (req, res, next) => {
       throw new HttpError(400, "missing field favorite");
     }
 
-    const contactsAll = await readContactsFile();
-    const index = contactsAll.findIndex((item) => item.id === contactId);
-    if (index === -1) {
+    const updatedContact = await Contact.findByIdAndUpdate(
+      contactId,
+      { favorite },
+      { new: true }
+    );
+
+    if (!updatedContact) {
       throw new HttpError(404, "Contact not found");
     }
 
-    contactsAll[index].favorite = favorite;
-    await writeContactsFile(contactsAll);
-    res.status(200).json(contactsAll[index]);
+    res.status(200).json(updatedContact);
   } catch (error) {
     next(error);
   }
