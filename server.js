@@ -17,5 +17,3 @@ mongoose.connect(DB_HOST)
     console.log(error.message);
     process.exit(1);
   });
-
-// mZ6Dwknzae2MUwq1
