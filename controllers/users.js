@@ -1,10 +1,20 @@
+const express = require("express");
+const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const User = require("../models/user");
+const User = require("../../models/user");
 const { HttpError } = require("../helpers/HttpErrors");
+
+const registrationSchema =
+  require("../schemas/validationSchemas").registrationSchema;
 
 const registerUser = async (req, res, next) => {
   try {
+    const { error } = registrationSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
     const { email, password } = req.body;
 
     const existingUser = await User.findOne({ email });
@@ -17,7 +27,7 @@ const registerUser = async (req, res, next) => {
     const newUser = new User({ email, password: hashedPassword });
     await newUser.save();
 
-    res.status(201).json({ user: newUser });
+    res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
     next(error);
   }
@@ -50,4 +60,7 @@ const loginUser = async (req, res, next) => {
   }
 };
 
-module.exports = { registerUser, loginUser };
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+
+module.exports = router;
