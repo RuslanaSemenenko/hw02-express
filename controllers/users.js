@@ -4,9 +4,27 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../../models/user");
 const { HttpError } = require("../helpers/HttpErrors");
+const gravatar = require("gravatar");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs").promises;
+const Jimp = require("jimp");
 
 const registrationSchema =
   require("../schemas/validationSchemas").registrationSchema;
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "tmp");
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const extension = path.extname(file.originalname);
+    cb(null, uniqueSuffix + extension);
+  },
+});
+
+const upload = multer({ storage });
 
 const registerUser = async (req, res, next) => {
   try {
@@ -24,7 +42,13 @@ const registerUser = async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ email, password: hashedPassword });
+    const avatarURL = gravatar.url(email, { s: "250", d: "mm" });
+
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      avatarURL,
+    });
     await newUser.save();
 
     res.status(201).json({ message: "User registered successfully" });
@@ -33,34 +57,28 @@ const registerUser = async (req, res, next) => {
   }
 };
 
-const loginUser = async (req, res, next) => {
+router.post("/register", registerUser);
+
+router.patch("/avatars", upload.single("avatar"), async (req, res, next) => {
   try {
-    const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      throw new HttpError(401, "Email or password is wrong");
-    }
+    const avatarFile = req.file;
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new HttpError(401, "Email or password is wrong");
-    }
+    const image = await Jimp.read(avatarFile.path);
+    await image.resize(250, 250).write(avatarFile.path);
 
-    const token = jwt.sign({ userId: user._id }, "your-secret-key");
-    user.token = token;
+    const newFileName = path.basename(avatarFile.path);
+    const newFilePath = path.join("public/avatars", newFileName);
+    await fs.rename(avatarFile.path, newFilePath);
+
+    const user = await User.findById(req.user.id);
+    user.avatarURL = `/avatars/${newFileName}`;
     await user.save();
 
-    res.json({
-      token,
-      user: { email: user.email, subscription: user.subscription },
-    });
+    res.json({ avatarURL: user.avatarURL });
   } catch (error) {
     next(error);
   }
-};
-
-router.post("/register", registerUser);
-router.post("/login", loginUser);
+});
 
 module.exports = router;
