@@ -1,30 +1,12 @@
-const express = require("express");
-const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../../models/user");
 const { HttpError } = require("../helpers/HttpErrors");
 const gravatar = require("gravatar");
-const multer = require("multer");
 const path = require("path");
 const fs = require("fs").promises;
 const Jimp = require("jimp");
-
-const registrationSchema =
-  require("../schemas/validationSchemas").registrationSchema;
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "tmp");
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const extension = path.extname(file.originalname);
-    cb(null, uniqueSuffix + extension);
-  },
-});
-
-const upload = multer({ storage });
+const { registrationSchema } = require("../schemas/validationSchemas");
 
 const registerUser = async (req, res, next) => {
   try {
@@ -57,11 +39,8 @@ const registerUser = async (req, res, next) => {
   }
 };
 
-router.post("/register", registerUser);
-
-router.patch("/avatars", upload.single("avatar"), async (req, res, next) => {
+const uploadAvatar = async (req, res, next) => {
   try {
-
     const avatarFile = req.file;
 
     const image = await Jimp.read(avatarFile.path);
@@ -79,6 +58,9 @@ router.patch("/avatars", upload.single("avatar"), async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
+};
 
-module.exports = router;
+module.exports = {
+  registerUser,
+  uploadAvatar,
+};
