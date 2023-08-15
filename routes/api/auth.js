@@ -3,12 +3,13 @@ const {
   loginUser,
   logoutUser,
   getCurrentUser,
-} = require("../controllers/auth");
-const authMiddleware = require("../controllers/auth");
-const router = express.Router();
+} = require("../../controllers/auth");
+const authMiddleware = require("../../middleware/authMiddleware");
 
-router.post("/login", loginUser);
-router.post("/logout", authMiddleware, logoutUser);
-router.get("/current", authMiddleware, getCurrentUser);
+const authRouter = express.Router();
 
-module.exports = router;
+authRouter.post("/login", loginUser);
+authRouter.post("/logout", authMiddleware.verifyToken, logoutUser);
+authRouter.get("/current", authMiddleware.verifyToken, getCurrentUser);
+
+module.exports = authRouter;
