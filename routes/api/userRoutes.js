@@ -20,5 +20,6 @@ const upload = multer({ storage });
 
 router.post("/register", userController.registerUser);
 router.patch("/avatars", upload.single("avatar"), userController.uploadAvatar);
+router.post("/verify", userController.resendVerificationEmail);
 
 module.exports = router;
